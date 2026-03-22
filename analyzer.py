@@ -62,79 +62,81 @@ def calculate_match_score(resume_text: str, job_description: str) -> float:
         print(f"Error calculating match score: {str(e)}")
         return 0.0
 
-def get_detailed_analysis(resume_text: str, job_description: str) -> Dict:
-    """
-    Get detailed analysis including match score, common keywords, and recommendations.
-    
-    Args:
-        resume_text (str): Resume text to analyze
-        job_description (str): Job description to compare against
-        
-    Returns:
-        Dict: Detailed analysis results
-    """
-    match_score = calculate_match_score(resume_text, job_description)
-    
-    # Extract keywords from both texts
-    resume_keywords = extract_keywords(resume_text)
-    job_keywords = extract_keywords(job_description)
-    
-    # Find common keywords
-    common_keywords = list(set(resume_keywords) & set(job_keywords))
-    
-    # Find missing keywords (in job but not in resume)
-    missing_keywords = list(set(job_keywords) - set(resume_keywords))
-    
-    # Generate recommendations based on match score
-    recommendations = generate_recommendations(match_score, missing_keywords)
-    
-    return {
-        'match_score': match_score,
-        'resume_keywords': resume_keywords[:20],  # Top 20 keywords
-        'job_keywords': job_keywords[:20],  # Top 20 keywords
-        'common_keywords': common_keywords[:15],  # Top 15 common keywords
-        'missing_keywords': missing_keywords[:15],  # Top 15 missing keywords
-        'recommendations': recommendations
-    }
+SKILL_DB = {
+    "data_science": [
+        "python","pandas","numpy","matplotlib","seaborn",
+        "scikit-learn","machine learning","statistics",
+        "data analysis","data visualization","sql"
+    ],
 
-def extract_keywords(text: str, top_n: int = 50) -> list:
-    """
-    Extract top keywords from text using TF-IDF.
-    
-    Args:
-        text (str): Text to extract keywords from
-        top_n (int): Number of top keywords to return
-        
-    Returns:
-        list: List of top keywords
-    """
-    if not text:
-        return []
-    
-    processed_text = preprocess_text(text)
-    
-    try:
-        vectorizer = TfidfVectorizer(
-            max_features=1000,
-            stop_words='english',
-            ngram_range=(1, 2),
-            min_df=1,
-            max_df=0.8
-        )
-        
-        tfidf_matrix = vectorizer.fit_transform([processed_text])
-        feature_names = vectorizer.get_feature_names_out()
-        tfidf_scores = tfidf_matrix.toarray()[0]
-        
-        # Get top keywords by TF-IDF score
-        keyword_scores = list(zip(feature_names, tfidf_scores))
-        keyword_scores.sort(key=lambda x: x[1], reverse=True)
-        
-        return [keyword for keyword, score in keyword_scores[:top_n] if score > 0]
-        
-    except Exception as e:
-        print(f"Error extracting keywords: {str(e)}")
-        return []
+    "web_development": [
+        "html","css","javascript","react","node","express",
+        "mongodb","api","frontend","backend"
+    ],
+
+    "ai_ml": [
+        "python","machine learning","deep learning",
+        "tensorflow","pytorch","nlp","computer vision"
+    ],
+
+    "java_developer": [
+        "java","spring","spring boot","hibernate",
+        "mysql","rest api","oop"
+    ],
+
+    "common": [
+        "git","github","communication","problem solving"
+    ]
+}
+
+def detect_domain(jd):
+    jd = jd.lower()
+
+    if "data science" in jd or "data analyst" in jd:
+        return "data_science"
+    elif "web" in jd or "frontend" in jd or "backend" in jd:
+        return "web_development"
+    elif "machine learning" in jd or "ai" in jd:
+        return "ai_ml"
+    elif "java" in jd:
+        return "java_developer"
+    else:
+        return "common"
+
+def analyze_resume(resume_text, job_description):
+    resume_text = resume_text.lower()
+    job_description = job_description.lower()
+
+    domain = detect_domain(job_description)
+
+    domain_skills = SKILL_DB.get(domain, [])
+    common_skills = SKILL_DB["common"]
+
+    required_skills = list(set(domain_skills + common_skills))
+
+    detected_skills = [s for s in required_skills if s in resume_text]
+    missing_skills = [s for s in required_skills if s not in resume_text]
+
+    if len(required_skills) == 0:
+        score = 0
+    else:
+        score = int((len(detected_skills) / len(required_skills)) * 100)
+
+    recommendations = []
+
+    if missing_skills:
+        recommendations.append("Improve your profile by adding these skills:")
+        recommendations.append(", ".join(missing_skills[:10]))
+        recommendations.append("Work on real projects using these technologies")
+    else:
+        recommendations.append("Your resume matches most required skills")
+
+    return {
+        "match_score": score,
+        "detected_skills": detected_skills,
+        "missing_keywords": missing_skills,
+        "recommendations": recommendations
+    }
 
 def find_missing_skills(resume_skills, jd_skills):
     """
@@ -157,23 +159,40 @@ def find_missing_skills(resume_skills, jd_skills):
     
     return missing
 
-def generate_recommendations(missing_skills):
+def generate_recommendations(match_score, missing_keywords):
     """
-    Generate recommendations based on missing skills.
+    Generate recommendations based on match score and missing skills.
     
     Args:
-        missing_skills (list): Skills missing from resume
+        match_score (float): Match percentage (0-100)
+        missing_keywords (list): Skills missing from resume
         
     Returns:
         list: List of recommendations
     """
-    if not missing_skills:
-        return ["Your resume already matches most required skills."]
-    
     recommendations = []
     
-    for skill in missing_skills[:5]:
-        recommendations.append(f"Consider adding experience or projects related to {skill}")
+    if match_score >= 70:
+        recommendations.append("Excellent match! Your resume aligns well with job requirements.")
+        recommendations.append("Consider highlighting your strongest technical skills in your summary.")
+        if missing_keywords:
+            recommendations.append(f"Minor improvement: Add experience with {', '.join(missing_keywords[:2])} if applicable.")
+    elif match_score >= 40:
+        recommendations.append("Good match with room for improvement.")
+        if missing_keywords:
+            skills_text = ', '.join(missing_keywords[:3])
+            recommendations.append(f"Focus on gaining experience in: {skills_text}")
+            recommendations.append(f"Consider adding projects related to {missing_keywords[0] if missing_keywords else 'key technologies'}")
+        recommendations.append("Quantify your achievements with specific metrics.")
+    else:
+        recommendations.append("Significant improvements needed to align with job requirements.")
+        if missing_keywords:
+            skills_text = ', '.join(missing_keywords[:5])
+            recommendations.append(f"Priority: Develop skills in {skills_text}")
+            recommendations.append(f"Add projects related to {missing_keywords[0] if missing_keywords else 'required technologies'}")
+            recommendations.append(f"Include relevant experience for {missing_keywords[1] if len(missing_keywords) > 1 else 'key skills'}")
+        recommendations.append("Consider taking courses or certifications for missing skills.")
+        recommendations.append("Reorganize resume to highlight relevant experience.")
     
     return recommendations
 
@@ -221,8 +240,8 @@ if __name__ == "__main__":
     print(f"Match Score: {score}%")
     
     # Get detailed analysis
-    analysis = get_detailed_analysis(sample_resume, sample_job_description)
+    analysis = analyze_resume(sample_resume, sample_job_description)
     print("\nDetailed Analysis:")
-    print(f"Common Keywords: {analysis['common_keywords']}")
+    print(f"Detected Skills: {analysis['detected_skills']}")
     print(f"Missing Keywords: {analysis['missing_keywords']}")
     print(f"Recommendations: {analysis['recommendations']}")

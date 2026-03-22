@@ -33,7 +33,10 @@ TECHNICAL_SKILLS = {
     'machine_learning': [
         'Machine Learning', 'Deep Learning', 'TensorFlow', 'PyTorch', 'Keras',
         'Scikit-learn', 'Pandas', 'NumPy', 'Matplotlib', 'Seaborn', 'NLTK',
-        'OpenCV', 'Hugging Face', 'XGBoost', 'LightGBM', 'CatBoost'
+        'OpenCV', 'Hugging Face', 'XGBoost', 'LightGBM', 'CatBoost',
+        'Data Science', 'Data Analysis', 'Statistical Analysis', 'Predictive Modeling',
+        'Natural Language Processing', 'Computer Vision', 'Reinforcement Learning',
+        'Time Series Analysis', 'Feature Engineering', 'Model Deployment', 'MLOps'
     ],
     'devops_tools': [
         'Docker', 'Kubernetes', 'Jenkins', 'Git', 'GitHub', 'GitLab',
@@ -143,7 +146,7 @@ def get_skill_count(text: str) -> int:
 
 def extract_jd_skills(job_description):
     """
-    Extract skills from job description using predefined skills database.
+    Extract skills from job description using the same comprehensive skills database.
     
     Args:
         job_description (str): Job description text
@@ -151,22 +154,25 @@ def extract_jd_skills(job_description):
     Returns:
         list: List of found skills
     """
-    skills_db = [
-        "python","sql","machine learning","deep learning",
-        "tensorflow","pandas","numpy","scikit-learn",
-        "docker","aws","power bi","tableau",
-        "java","c++","react","html","css","javascript"
-    ]
+    if not job_description or not isinstance(job_description, str):
+        return []
+    
+    # Use the same comprehensive skills database as extract_skills
+    all_skills = []
+    for category, skills in TECHNICAL_SKILLS.items():
+        all_skills.extend(skills)
     
     found = []
-    
     jd_lower = job_description.lower()
     
-    for skill in skills_db:
-        if skill in jd_lower:
+    for skill in all_skills:
+        skill_lower = skill.lower()
+        # Check for exact word boundaries to avoid partial matches
+        pattern = r'\b' + re.escape(skill_lower) + r'\b'
+        if re.search(pattern, jd_lower):
             found.append(skill)
     
-    return found
+    return sorted(found)
 
 # Example usage and testing
 if __name__ == "__main__":
